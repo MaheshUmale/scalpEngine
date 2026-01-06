@@ -1,4 +1,15 @@
-# Maven
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database files
+*.db
+
+# Compressed files
+*.gz
+
+# Maven build files
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -9,20 +20,7 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
 
-# Logs
+# Log files
 *.log
-logs/
-
-# Test Reports
-surefire-reports/
-failsafe-reports/
-
-# IDE files
-.idea/
-*.iml
-*.iws
-
-# Development artifacts
-extracted_images/
-pdf_converter.py

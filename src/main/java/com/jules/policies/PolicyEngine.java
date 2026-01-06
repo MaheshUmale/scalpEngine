@@ -26,6 +26,9 @@ public class PolicyEngine {
         for (TradingStrategy strategy : strategies) {
             TradeSignal signal = strategy.analyze(data);
             if (signal != null) {
+                // Set the strategy name
+                signal.setStrategyName(strategy.getName());
+
                 // Apply risk management and position sizing
                 double riskAmount = accountSize * maxRiskPerTrade;
                 double riskPerShare = Math.abs(signal.getEntryPrice() - signal.getStopLoss());

@@ -13,14 +13,20 @@ import org.json.simple.parser.ParseException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Main {
+
+    private static final Map<String, List<Candle>> candleHistory = new HashMap<>();
+    private static final int MAX_HISTORY_SIZE = 50; // Keep last 50 candles
+    private static PolicyEngine policyEngine;
 
     public static void main(String[] args) {
         try {
             // 1. Initialize the Policy Engine
-            PolicyEngine policyEngine = new PolicyEngine();
+            policyEngine = new PolicyEngine();
 
             // 2. Connect to the WebSocket Server
             TradingWebSocketClient client = new TradingWebSocketClient(new URI("ws://localhost:8765"));
@@ -33,34 +39,12 @@ public class Main {
                     JSONObject json = (JSONObject) parser.parse(message);
                     String type = (String) json.get("type");
 
-                    if ("market_data".equals(type)) {
-                        // Assuming the data is a list of candles
-                        JSONArray candleArray = (JSONArray) json.get("candles");
-                        List<Candle> candles = new ArrayList<>();
-                        for (Object obj : candleArray) {
-                            JSONObject candleJson = (JSONObject) obj;
-                            candles.add(new Candle(
-                                (long) candleJson.get("timestamp"),
-                                (double) candleJson.get("open"),
-                                (double) candleJson.get("high"),
-                                (double) candleJson.get("low"),
-                                (double) candleJson.get("close"),
-                                ((Long) candleJson.get("volume")).intValue()
-                            ));
-                        }
+                    if ("candle_update".equals(type)) {
+                        // Data is a list of candle updates for multiple symbols
+                        JSONArray candleUpdates = (JSONArray) json.get("data");
 
-                        // Create a Data object and run the policy engine
-                        Data data = new Data();
-                        data.setCandles(candles);
-                        TradeSignal signal = policyEngine.decide(data);
-
-                        // If a signal is generated, print it
-                        if (signal != null) {
-                            System.out.println("New Trade Signal: " + signal.getPosition() +
-                                               " | Entry: " + signal.getEntryPrice() +
-                                               " | Stop: " + signal.getStopLoss() +
-                                               " | Take Profit: " + signal.getTakeProfit() +
-                                               " | Position Size: " + signal.getPositionSize());
+                        for (Object obj : candleUpdates) {
+                            processCandleUpdate((JSONObject) obj);
                         }
                     }
                 } catch (ParseException e) {
@@ -74,6 +58,52 @@ public class Main {
 
         } catch (URISyntaxException | InterruptedException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void processCandleUpdate(JSONObject updateJson) {
+        String symbol = (String) updateJson.get("symbol");
+        JSONObject candleJson = (JSONObject) updateJson.get("1m");
+
+        // Create a candle from the received data
+        Candle newCandle = new Candle(
+            (long) updateJson.get("timestamp"),
+            (double) candleJson.get("open"),
+            (double) candleJson.get("high"),
+            (double) candleJson.get("low"),
+            (double) candleJson.get("close"),
+            ((Long) candleJson.get("volume")).intValue()
+        );
+
+        // Get or create the history for this symbol
+        List<Candle> symbolHistory = candleHistory.computeIfAbsent(symbol, k -> new ArrayList<>());
+        symbolHistory.add(newCandle);
+
+        // Maintain history size
+        if (symbolHistory.size() > MAX_HISTORY_SIZE) {
+            symbolHistory.remove(0);
+        }
+
+        // Log the size of the history
+        System.out.println("Processing " + symbol + " with " + symbolHistory.size() + " candles in history.");
+        if (!symbolHistory.isEmpty()) {
+            System.out.println("Latest candle: " + symbolHistory.get(symbolHistory.size() - 1));
+        }
+
+        // Create a Data object with the historical data for the current symbol and run the policy engine
+        Data data = new Data();
+        data.setCandles(symbolHistory);
+        TradeSignal signal = policyEngine.decide(data);
+
+        // If a signal is generated, print it
+        if (signal != null) {
+            signal.setSymbol(symbol);
+            // Add symbol and strategy name to the output for clarity
+            System.out.println("SCALP SIGNAL [" + signal.getStrategyName() + "] for " + signal.getSymbol() + ": " + signal.getPosition() +
+                               " | Entry: " + signal.getEntryPrice() +
+                               " | Stop: " + signal.getStopLoss() +
+                               " | Take Profit: " + signal.getTakeProfit() +
+                               " | Position Size: " + signal.getPositionSize());
         }
     }
 }
