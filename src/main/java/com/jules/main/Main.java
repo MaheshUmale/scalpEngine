@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Main {
 
@@ -21,6 +22,7 @@ public class Main {
         try {
             // 1. Initialize the Policy Engine
             PolicyEngine policyEngine = new PolicyEngine();
+            final List<Candle> historicalCandles = new ArrayList<>();
 
             // 2. Connect to the WebSocket Server
             TradingWebSocketClient client = new TradingWebSocketClient(new URI("ws://localhost:8765"));
@@ -28,30 +30,42 @@ public class Main {
             // 3. Set up a message handler to process incoming data
             client.addMessageHandler(message -> {
                 try {
-                    // Parse the incoming JSON message
                     JSONParser parser = new JSONParser();
                     JSONObject json = (JSONObject) parser.parse(message);
                     String type = (String) json.get("type");
 
-                    if ("market_data".equals(type)) {
-                        // Assuming the data is a list of candles
-                        JSONArray candleArray = (JSONArray) json.get("candles");
-                        List<Candle> candles = new ArrayList<>();
-                        for (Object obj : candleArray) {
-                            JSONObject candleJson = (JSONObject) obj;
-                            candles.add(new Candle(
-                                (long) candleJson.get("timestamp"),
-                                (double) candleJson.get("open"),
-                                (double) candleJson.get("high"),
-                                (double) candleJson.get("low"),
-                                (double) candleJson.get("close"),
-                                ((Long) candleJson.get("volume")).intValue()
-                            ));
+                    if ("candle_update".equals(type)) { // FIX: Listen for the correct message type
+                        JSONArray dataArray = (JSONArray) json.get("data");
+                        if (dataArray == null) return;
+
+                        // Process the latest candle data from the message
+                        for (Object obj : dataArray) {
+                            JSONObject candleUpdate = (JSONObject) obj;
+                            JSONObject candleJson = (JSONObject) candleUpdate.get("1m"); // Use 1-minute candle
+
+                            Candle newCandle = new Candle(
+                                    (long) candleUpdate.get("timestamp"),
+                                    ((Number) candleJson.get("open")).doubleValue(),
+                                    ((Number) candleJson.get("high")).doubleValue(),
+                                    ((Number) candleJson.get("low")).doubleValue(),
+                                    ((Number) candleJson.get("close")).doubleValue(),
+                                    ((Number) candleJson.get("volume")).intValue()
+                            );
+
+                            // Add to historical data, ensuring no duplicates and maintaining order
+                            if (historicalCandles.isEmpty() || newCandle.getTimestamp() > historicalCandles.get(historicalCandles.size() - 1).getTimestamp()) {
+                                historicalCandles.add(newCandle);
+                            }
+                        }
+
+                        // Keep the list of candles to a reasonable size for performance
+                        if (historicalCandles.size() > 100) {
+                            historicalCandles.remove(0);
                         }
 
                         // Create a Data object and run the policy engine
                         Data data = new Data();
-                        data.setCandles(candles);
+                        data.setCandles(new ArrayList<>(historicalCandles)); // Pass a copy
                         TradeSignal signal = policyEngine.decide(data);
 
                         // If a signal is generated, print it
@@ -60,7 +74,7 @@ public class Main {
                                                " | Entry: " + signal.getEntryPrice() +
                                                " | Stop: " + signal.getStopLoss() +
                                                " | Take Profit: " + signal.getTakeProfit() +
-                                               " | Position Size: " + signal.getPositionSize());
+                                               " | Position Size: " + String.format("%.2f", signal.getPositionSize()));
                         }
                     }
                 } catch (ParseException e) {
@@ -70,6 +84,7 @@ public class Main {
             });
 
             // 4. Start the client
+            System.out.println("Trading engine started. Connecting to data bridge...");
             client.connectBlocking();
 
         } catch (URISyntaxException | InterruptedException e) {
