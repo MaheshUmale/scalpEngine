@@ -36,7 +36,7 @@ public class TradingWebSocketClientTest {
 
         @Override
         public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-            System.out.println("MockServer: Closed connection to " + conn.getRemoteSocketAddress());
+            System.out.println("MockServer: Closed connection to " + conn.getRemoteSocketAddress() + " with code " + code + " and reason " + reason);
         }
 
         @Override
@@ -75,7 +75,7 @@ public class TradingWebSocketClientTest {
 
         // Add a small delay to ensure the server is fully started
         try {
-            Thread.sleep(1000); // 1 second delay
+            Thread.sleep(2000); // 2 second delay
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

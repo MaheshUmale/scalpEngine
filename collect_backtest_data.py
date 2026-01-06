@@ -119,7 +119,7 @@ class BacktestDataCollector:
                     # For past days
                     response = self.history_api.get_historical_candle_data1(
                         instrument_key=u_key,
-                        unit="day",
+                        unit="minutes",
                         interval="1",
                         to_date=self.target_date,
                         from_date=self.target_date

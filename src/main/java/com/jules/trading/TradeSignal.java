@@ -6,6 +6,8 @@ public class TradeSignal {
     private final double stopLoss;
     private final double takeProfit;
     private double positionSize;
+    private String strategyName;
+    private String symbol;
 
     public TradeSignal(Position position, double entryPrice, double stopLoss, double takeProfit) {
         this.position = position;
@@ -36,5 +38,21 @@ public class TradeSignal {
 
     public void setPositionSize(double positionSize) {
         this.positionSize = positionSize;
+    }
+
+    public String getStrategyName() {
+        return strategyName;
+    }
+
+    public void setStrategyName(String strategyName) {
+        this.strategyName = strategyName;
+    }
+
+    public String getSymbol() {
+        return symbol;
+    }
+
+    public void setSymbol(String symbol) {
+        this.symbol = symbol;
     }
 }
