@@ -11,7 +11,7 @@ import java.util.List;
 public class BacktestRunner {
 
     public static void main(String[] args) {
-        String csvFilePath = "nifty_1min_data.csv";
+        String csvFilePath = "real_historical_data.csv";
 
         // List of strategies to backtest
         List<TradingStrategy> strategies = new ArrayList<>();
