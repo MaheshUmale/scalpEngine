@@ -73,6 +73,13 @@ public class TradingWebSocketClientTest {
         mockServer = new MockWebSocketServer(port);
         mockServer.start();
 
+        // Add a small delay to ensure the server is fully started
+        try {
+            Thread.sleep(1000); // 1 second delay
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         // Initialize and connect the client
         client = new TradingWebSocketClient(new URI("ws://localhost:" + port));
         client.addMessageHandler(receivedMessages::add);
